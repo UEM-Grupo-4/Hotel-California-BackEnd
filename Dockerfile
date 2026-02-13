@@ -17,9 +17,18 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
-COPY ./entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
 EXPOSE 8000
 
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["sh", "-c", "\
+echo DB_HOST=$DB_HOST && \
+echo DB_PORT=$DB_PORT && \
+echo '⏳ Waiting for MySQL...' && \
+while ! nc -z $DB_HOST $DB_PORT; do sleep 0.5; done && \
+echo '✅ MySQL is up!' && \
+cd hotel_backend && \
+echo '🛠 Running migrations...' && \
+python manage.py makemigrations && \
+python manage.py migrate && \
+echo '🚀 Starting Django server...' && \
+exec python manage.py runserver 0.0.0.0:8000 \
+"]
