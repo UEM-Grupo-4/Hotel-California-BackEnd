@@ -5,12 +5,12 @@ from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
 
-    password = serializers.CharField(write_only=True, required=False, min_length=4)
+    password = serializers.CharField(write_only=True, required=True, min_length=4)
 
     class Meta:
         model = User
-        fields = ['id_usuario', 'username', 'email', 'nombre', 'password']
-        read_only_fields = ['id_usuario']
+        fields = ['id', 'username', 'email', 'nombre', 'password']
+        read_only_fields = ['id']
 
     def validate_email(self, value):
         if '@' not in value:
