@@ -25,7 +25,7 @@ echo DB_PORT=$DB_PORT && \
 echo '⏳ Waiting for MySQL...' && \
 while ! nc -z $DB_HOST $DB_PORT; do sleep 0.5; done && \
 echo '✅ MySQL is up!' && \
-cd hotel_backend && \
+cd backend_django && \
 echo '🛠 Running migrations...' && \
 python manage.py makemigrations && \
 python manage.py migrate && \
