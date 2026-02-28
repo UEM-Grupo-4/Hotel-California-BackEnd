@@ -7,7 +7,7 @@ class Cliente(models.Model):
     nombre = models.CharField(max_length=50)
     apellido_1 = models.CharField(max_length=100)
     apellido_2 = models.CharField(max_length=100)
-    email = models.EmailField()
+    email = models.EmailField(unique=True)
     
     def __str__(self):
         return f'Cliente: {self.nombre} {self.apellido_1} {self.apellido_2}'
@@ -20,6 +20,11 @@ telefono_validator = RegexValidator(
 class Telefono(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='telefonos')
     telefono = models.CharField(max_length=16, validators=[telefono_validator])    
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['cliente', 'telefono'], name='unique_cliente_telefono'),
+        ]
     
     def __str__(self):
         return f'Cliente: {self.cliente} || Teléfono: {self.telefono}'
