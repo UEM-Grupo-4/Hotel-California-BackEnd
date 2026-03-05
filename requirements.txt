@@ -8,3 +8,4 @@ mysqlclient
 pymysql
 pytest
 pytest-django
+drf-spectacular

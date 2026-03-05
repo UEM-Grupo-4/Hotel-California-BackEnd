@@ -24,4 +24,4 @@ class TipoHabitacion(models.Model):
     precio_noche = models.DecimalField(max_digits=8, decimal_places=2)
 
     def __str__(self):
-        return f"{self.tipo} (capacidad {self.capacidad}) - ${self.precio_noche}/noche"    
+        return f"{self.tipo} (capacidad {self.capacidad}) - ${self.precio_noche}/noche"
