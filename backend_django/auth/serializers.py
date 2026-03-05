@@ -1,13 +1,11 @@
-from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed
-from typing import Any
 
+User = get_user_model()
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
@@ -20,7 +18,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         except User.DoesNotExist:
             raise AuthenticationFailed("Invalid credentials")
 
-        user = authenticate(username=user.username, password=password)
+        user = authenticate(email=user.email, password=password)
 
         if not user:
             raise AuthenticationFailed("Invalid credentials")
