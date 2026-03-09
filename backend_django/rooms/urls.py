@@ -3,8 +3,8 @@ from .views import RoomViewSet, RoomTypeViewSet, AmenityViewSet
 
 router = DefaultRouter()
 
-router.register(r'', RoomViewSet)
-router.register(r'types', RoomTypeViewSet, basename='type')
+router.register(r'types', RoomTypeViewSet, basename='types')
 router.register(r'amenities', AmenityViewSet, basename='amenities')
+router.register(r'', RoomViewSet)
 
 urlpatterns = router.urls
