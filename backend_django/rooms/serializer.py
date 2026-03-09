@@ -1,29 +1,41 @@
 from rest_framework import serializers
-from .models import Habitacion, TipoHabitacion
+from .models import Room, RoomType, Amenity
 
-class TipoHabitacionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TipoHabitacion
-        fields = ['id', 'tipo', 'capacidad', 'precio_noche']
 
-class HabitacionSerializer(serializers.ModelSerializer):
-    tipo = serializers.PrimaryKeyRelatedField(queryset=TipoHabitacion.objects.all())
+class RoomTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = Habitacion
-        fields = ['id', 'numero', 'descripcion', 'estado', 'tipo', 'creada_el', 'actualizada_el']
-        read_only_fields = ['id', 'creada_el', 'actualizada_el']
+        model = RoomType
+        fields = ['id', 'name', 'capacity', 'price_per_night']
+
+
+class RoomSerializer(serializers.ModelSerializer):
+
+    type = serializers.PrimaryKeyRelatedField(
+        queryset=RoomType.objects.all()
+    )
+
+    class Meta:
+        model = Room
+        fields = [
+            'id',
+            'number',
+            'description',
+            'type',
+            'created_at',
+            'updated_at'
+        ]
+
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret['tipo'] = TipoHabitacionSerializer(instance.tipo).data
-        return ret    
+        ret['type'] = RoomTypeSerializer(instance.type).data
+        return ret
 
-class HabitacionDetailSerializer(HabitacionSerializer):
-    tipo = TipoHabitacionSerializer()
+class AmenitySerializer(serializers.ModelSerializer):
 
-    class Meta(HabitacionSerializer.Meta):
-        fields = HabitacionSerializer.Meta.fields + ['tipo']
-        read_only_fields = HabitacionSerializer.Meta.read_only_fields + ['tipo']
-        depth = 1
-        
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name']
+        read_only_fields = ['id']

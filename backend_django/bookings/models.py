@@ -9,11 +9,11 @@ class Reserva(models.Model):
         CONFIRMADA = "CONFIRMADA", "Confirmada"
         RECHAZADA = "RECHAZADA", "Rechazada"
         CANCELADA = "CANCELADA", "Cancelada"
-        
+
     class OpcionesReserva(models.TextChoices):
         HABITACION = "HABITACION", "Habitación"
         SALA = "SALA", "Sala"
-            
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     estado = models.CharField(
         max_length=12,
@@ -26,16 +26,16 @@ class Reserva(models.Model):
     )
     observaciones = models.CharField(max_length=255, blank=True)
     cliente = models.ForeignKey("customers.Cliente", on_delete=models.PROTECT, related_name='reservas') # PONEMOS PROTECT PARA NO BORRAR EL HISTÓRICO DE RESERVAS
-    
+
     def __str__(self):
         return f"Reserva: {self.id} || Cliente: {self.cliente} || Tipo de reserva : {self.tipo_reserva} ||  Estado: {self.estado}"
-    
+
 class ReservaHabitacion(models.Model):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name="reserva_habitacion")
-    habitacion = models.ForeignKey("rooms.Habitacion", on_delete=models.PROTECT, related_name="reservas_habitacion")
+    habitacion = models.ForeignKey("rooms.Room", on_delete=models.PROTECT, related_name="reservas_habitacion")
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
-    
+
     def clean(self):
         if self.fecha_fin <= self.fecha_inicio:
             raise ValidationError("La fecha_fin debe ser posterior a la fecha_inicio.")
@@ -47,7 +47,7 @@ class ReservaHabitacion(models.Model):
 
 class ReservaSala(models.Model):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name="reserva_sala")
-    sala = models.ForeignKey("meetings.Sala", on_delete=models.PROTECT, related_name="reservas_sala")
+    # sala = models.ForeignKey("meetings.Sala", on_delete=models.PROTECT, related_name="reservas_sala")
     fecha = models.DateField()
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
@@ -59,4 +59,4 @@ class ReservaSala(models.Model):
             raise ValidationError("La reserva asociada debe ser de tipo SALA.")
 
     def __str__(self):
-        return f"Reserva sala {self.sala} ({self.fecha} {self.hora_inicio}-{self.hora_fin})"
+        return f"Reserva sala ({self.fecha} {self.hora_inicio}-{self.hora_fin})"
