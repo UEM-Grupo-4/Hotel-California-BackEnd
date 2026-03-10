@@ -6,6 +6,7 @@ djangorestframework-simplejwt
 django-cors-headers
 mysqlclient
 pymysql
+Pillow
 pytest
 pytest-django
 drf-spectacular

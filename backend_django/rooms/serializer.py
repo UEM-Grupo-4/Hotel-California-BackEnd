@@ -6,7 +6,7 @@ class RoomTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RoomType
-        fields = ['id', 'name', 'capacity', 'price_per_night']
+        fields = ['id', 'name', 'capacity', 'amenities', 'price_per_night']
 
 
 class RoomSerializer(serializers.ModelSerializer):
@@ -15,6 +15,8 @@ class RoomSerializer(serializers.ModelSerializer):
         queryset=RoomType.objects.all()
     )
 
+    image = serializers.ImageField(required=False)
+
     class Meta:
         model = Room
         fields = [
@@ -22,6 +24,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'number',
             'description',
             'type',
+            'image',
             'created_at',
             'updated_at'
         ]
