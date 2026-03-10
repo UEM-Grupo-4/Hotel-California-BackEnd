@@ -47,7 +47,7 @@ class ReservaHabitacion(models.Model):
 
 class ReservaSala(models.Model):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name="reserva_sala")
-    # sala = models.ForeignKey("meetings.Sala", on_delete=models.PROTECT, related_name="reservas_sala")
+    sala = models.ForeignKey("meetings.Sala", on_delete=models.PROTECT, related_name="reservas_sala")
     fecha = models.DateField()
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
@@ -59,4 +59,4 @@ class ReservaSala(models.Model):
             raise ValidationError("La reserva asociada debe ser de tipo SALA.")
 
     def __str__(self):
-        return f"Reserva sala ({self.fecha} {self.hora_inicio}-{self.hora_fin})"
+        return f"Reserva sala: {self.sala} ({self.fecha} {self.hora_inicio}-{self.hora_fin})"
