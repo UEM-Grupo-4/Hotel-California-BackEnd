@@ -47,7 +47,7 @@ class ReservaHabitacion(models.Model):
 
 class ReservaSala(models.Model):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name="reserva_sala")
-    sala = models.ForeignKey("meetings.Sala", on_delete=models.PROTECT, related_name="reservas_sala")
+    sala = models.ForeignKey("meetings.Sala", on_delete=models.PROTECT, related_name="reservas_sala", null=True, blank=True)
     fecha = models.DateField()
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
