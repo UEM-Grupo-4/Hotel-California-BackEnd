@@ -19,7 +19,7 @@ class Room(models.Model):
         on_delete=models.CASCADE
     )
 
-    image = models.ImageField(upload_to="rooms/", null=True, blank=True)
+    image = models.ImageField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

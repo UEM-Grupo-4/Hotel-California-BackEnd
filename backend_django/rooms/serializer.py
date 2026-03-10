@@ -34,6 +34,10 @@ class RoomSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         ret = super().to_representation(instance)
         ret['type'] = RoomTypeSerializer(instance.type).data
+        request = self.context.get("request")
+        if instance.image and request:
+            ret["image"] = request.build_absolute_uri(instance.image.url)
+
         return ret
 
 class AmenitySerializer(serializers.ModelSerializer):
