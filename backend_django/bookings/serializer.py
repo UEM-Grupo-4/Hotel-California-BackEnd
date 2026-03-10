@@ -1,10 +1,9 @@
 from django.db import transaction
 from rest_framework import serializers
 from bookings.models import Reserva, ReservaHabitacion, ReservaSala
-from customers.models import Cliente, Telefono
+from customers.models import Cliente, Telefono, telefono_validator 
 from rooms.models import Room
 from meetings.models import Sala, HorarioSala
-import re
 
 
 # Serializers para listar reservas
@@ -51,17 +50,15 @@ class CrearReservaBaseSerializer(serializers.Serializer):
         allow_blank=True
     )
     email = serializers.EmailField()
-    telefono = serializers.CharField(max_length=16)
+    telefono = serializers.CharField(
+        max_length=16,
+         validators=[telefono_validator]
+        )
     observaciones = serializers.CharField(
         required=False,
         allow_blank=True,
         max_length=255
     )
-    
-    def validate_telefono(self, value):
-        if not re.match(r'^\+\d{1,3}\d{6,12}$', value):
-            raise serializers.ValidationError("Teléfono inválido. Usa el formato internacional, ej: +34600111222.")        
-        return value
     
     def obtener_o_crear_cliente(self, validated_data):
         nombre = validated_data.pop("nombre")
