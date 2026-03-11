@@ -159,11 +159,12 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
             raise serializers.ValidationError(
                 {"hora_fin": "La hora final debe ser posterior a la hora de inicio."}
             )
-            
-        # Comprobamos que la sala dispone del horario solicitado
+
+        # Comprobamos que la sala dispone del horario solicitado (recurrente por dia de semana)
+        dia_semana = attrs["fecha"].weekday()
         horario_valido = HorarioSala.objects.filter(
             sala=attrs["sala"],
-            fecha=attrs["fecha"],
+            dia_semana=dia_semana,
             hora_inicio__lte=attrs["hora_inicio"],
             hora_fin__gte=attrs["hora_fin"],
         ).exists()
@@ -208,3 +209,16 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
             )
             
             return reserva_sala
+
+
+class DisponibilidadHabitacionesSerializer(serializers.Serializer):
+    fecha_inicio = serializers.DateField()
+    fecha_fin = serializers.DateField()
+    huespedes = serializers.IntegerField(min_value=1)
+
+    def validate(self, attrs):
+        if attrs["fecha_fin"] <= attrs["fecha_inicio"]:
+            raise serializers.ValidationError(
+                {"fecha_fin": "La fecha final debe ser posterior a la fecha de inicio."}
+            )
+        return attrs

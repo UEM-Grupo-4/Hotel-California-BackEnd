@@ -42,8 +42,22 @@ class ReservaHabitacion(models.Model):
         if self.reserva.tipo_reserva != Reserva.OpcionesReserva.HABITACION:
             raise ValidationError("La reserva asociada debe ser de tipo HABITACION.")
 
+        # Evitar solapamientos con reservas confirmadas
+        solapamiento = ReservaHabitacion.objects.filter(
+            habitacion=self.habitacion,
+            reserva__estado=Reserva.OpcionesEstado.CONFIRMADA,
+            fecha_inicio__lt=self.fecha_fin,
+            fecha_fin__gt=self.fecha_inicio,
+        ).exclude(pk=self.pk).exists()
+        if solapamiento:
+            raise ValidationError("Habitación no disponible en las fechas seleccionadas.")
+
     def __str__(self):
         return f"Reserva habitación {self.habitacion} ({self.fecha_inicio} - {self.fecha_fin})"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 class ReservaSala(models.Model):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name="reserva_sala")
@@ -59,16 +73,15 @@ class ReservaSala(models.Model):
             raise ValidationError("La reserva asociada debe ser de tipo SALA.")
 
         # Evitar solapamientos con reservas confirmadas
-        if self.reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
-            solapamiento = ReservaSala.objects.filter(
-                sala=self.sala,
-                fecha=self.fecha,
-                reserva__estado=Reserva.OpcionesEstado.CONFIRMADA,
-                hora_inicio__lt=self.hora_fin,
-                hora_fin__gt=self.hora_inicio,
-            ).exclude(pk=self.pk).exists()
-            if solapamiento:
-                raise ValidationError("Sala no disponible en la fecha y horario seleccionados.")
+        solapamiento = ReservaSala.objects.filter(
+            sala=self.sala,
+            fecha=self.fecha,
+            reserva__estado=Reserva.OpcionesEstado.CONFIRMADA,
+            hora_inicio__lt=self.hora_fin,
+            hora_fin__gt=self.hora_inicio,
+        ).exclude(pk=self.pk).exists()
+        if solapamiento:
+            raise ValidationError("Sala no disponible en la fecha y horario seleccionados.")
 
     def __str__(self):
         return f"Reserva sala: {self.sala} ({self.fecha} {self.hora_inicio}-{self.hora_fin})"
