@@ -58,5 +58,21 @@ class ReservaSala(models.Model):
         if self.reserva.tipo_reserva != Reserva.OpcionesReserva.SALA:
             raise ValidationError("La reserva asociada debe ser de tipo SALA.")
 
+        # Evitar solapamientos con reservas confirmadas
+        if self.reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
+            solapamiento = ReservaSala.objects.filter(
+                sala=self.sala,
+                fecha=self.fecha,
+                reserva__estado=Reserva.OpcionesEstado.CONFIRMADA,
+                hora_inicio__lt=self.hora_fin,
+                hora_fin__gt=self.hora_inicio,
+            ).exclude(pk=self.pk).exists()
+            if solapamiento:
+                raise ValidationError("Sala no disponible en la fecha y horario seleccionados.")
+
     def __str__(self):
         return f"Reserva sala: {self.sala} ({self.fecha} {self.hora_inicio}-{self.hora_fin})"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
