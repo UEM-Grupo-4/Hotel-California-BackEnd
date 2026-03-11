@@ -36,6 +36,20 @@ class HorarioSala(models.Model):
     def clean(self):
         if self.hora_fin <= self.hora_inicio:
             raise ValidationError("La hora final debe ser posterior a la hora de inicio.")
+
+        # Evitar solapamientos para la misma sala y fecha
+        solapamiento = HorarioSala.objects.filter(
+            sala=self.sala,
+            fecha=self.fecha,
+            hora_inicio__lt=self.hora_fin,
+            hora_fin__gt=self.hora_inicio,
+        ).exclude(pk=self.pk).exists()
+        if solapamiento:
+            raise ValidationError("El horario se solapa con otro existente para esta sala.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
         
     class Meta:
         constraints = [
