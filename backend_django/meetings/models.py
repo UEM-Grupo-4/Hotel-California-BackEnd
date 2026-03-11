@@ -24,12 +24,21 @@ class Sala(models.Model):
     
 
 class HorarioSala(models.Model):
+    class OpcionesDiaSemana(models.IntegerChoices):
+        LUNES = 0, "Lunes"
+        MARTES = 1, "Martes"
+        MIERCOLES = 2, "Miercoles"
+        JUEVES = 3, "Jueves"
+        VIERNES = 4, "Viernes"
+        SABADO = 5, "Sabado"
+        DOMINGO = 6, "Domingo"
+
     sala = models.ForeignKey(
         Sala,
         on_delete=models.CASCADE,
         related_name="horarios"
     )
-    fecha = models.DateField()
+    dia_semana = models.PositiveSmallIntegerField(choices=OpcionesDiaSemana.choices)
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
     
@@ -37,10 +46,10 @@ class HorarioSala(models.Model):
         if self.hora_fin <= self.hora_inicio:
             raise ValidationError("La hora final debe ser posterior a la hora de inicio.")
 
-        # Evitar solapamientos para la misma sala y fecha
+        # Evitar solapamientos para la misma sala y dia de semana
         solapamiento = HorarioSala.objects.filter(
             sala=self.sala,
-            fecha=self.fecha,
+            dia_semana=self.dia_semana,
             hora_inicio__lt=self.hora_fin,
             hora_fin__gt=self.hora_inicio,
         ).exclude(pk=self.pk).exists()
@@ -54,10 +63,10 @@ class HorarioSala(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["sala", "fecha", "hora_inicio", "hora_fin"],
+                fields=["sala", "dia_semana", "hora_inicio", "hora_fin"],
                 name="horario_sala_unico"
             )
         ]
-        
+
     def __str__(self):
-        return f"Sala: {self.sala} || Horario: {self.fecha} {self.hora_inicio}-{self.hora_fin}" 
+        return f"Sala: {self.sala} || Horario: {self.get_dia_semana_display()} {self.hora_inicio}-{self.hora_fin}" 
