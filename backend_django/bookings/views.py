@@ -91,3 +91,30 @@ class HabitacionesDisponiblesView(APIView):
         disponibles = rooms_qs.exclude(id__in=ocupadas_ids)
         serializer = RoomSerializer(disponibles, many=True, context={"request": request})
         return Response(serializer.data)
+
+class ReservaSearchView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        code = request.query_params.get("code")
+        email = request.query_params.get("email")
+
+        if not code or not email:
+            return Response(
+                {"detail": "code and email are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            reserva = Reserva.objects.select_related("cliente").get(
+                code=code,
+                cliente__email=email,
+            )
+        except Reserva.DoesNotExist:
+            return Response(
+                {"detail": "Booking not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = ReservaSerializer(reserva, context={"request": request})
+        return Response(serializer.data)

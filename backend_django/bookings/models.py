@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-
+import random
+import string
 # Create your models here.
 
 class Reserva(models.Model):
@@ -14,6 +15,7 @@ class Reserva(models.Model):
         HABITACION = "HABITACION", "Habitación"
         SALA = "SALA", "Sala"
 
+    code = models.CharField(max_length=10, unique=True, editable=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     estado = models.CharField(
         max_length=12,
@@ -26,6 +28,27 @@ class Reserva(models.Model):
     )
     observaciones = models.CharField(max_length=255, blank=True)
     cliente = models.ForeignKey("customers.Cliente", on_delete=models.PROTECT, related_name='reservas') # PONEMOS PROTECT PARA NO BORRAR EL HISTÓRICO DE RESERVAS
+
+    def generate_code(self):
+        letters = string.ascii_uppercase
+        numbers = string.digits
+
+        return (
+            random.choice(letters)
+            + "".join(random.choices(numbers, k=4))
+            + "".join(random.choices(letters, k=2))
+        )
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            code = self.generate_code()
+
+            while Reserva.objects.filter(code=code).exists():
+                code = self.generate_code()
+
+            self.code = code
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Reserva: {self.id} || Cliente: {self.cliente} || Tipo de reserva : {self.tipo_reserva} ||  Estado: {self.estado}"

@@ -29,6 +29,8 @@ cd backend_django && \
 echo '🛠 Running migrations...' && \
 python manage.py makemigrations && \
 python manage.py migrate && \
+echo '🌱 Corriendo Seeds' && \
+python manage.py seed_data && \
 echo '🚀 Starting Django server...' && \
 exec python manage.py runserver 0.0.0.0:8000 \
 "]
