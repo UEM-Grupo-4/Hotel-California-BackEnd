@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'rooms',
     "meetings",
     'bookings',
+    'notifications',
 ]
 
 REST_FRAMEWORK = {
