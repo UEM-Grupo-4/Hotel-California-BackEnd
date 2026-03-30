@@ -1,7 +1,7 @@
 from bookings.models import Reserva
 from notifications.models import Notificacion
 
-def crear_notificacion_reserva(reserva, canal=Notificacion.OpcionesCanal.EMAIL):
+def crear_notificacion_reserva(reserva):
     if reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
         mensaje = f"Tu reserva con ID {reserva.id} ha sido confirmada."
     elif reserva.estado == Reserva.OpcionesEstado.RECHAZADA:
@@ -12,7 +12,6 @@ def crear_notificacion_reserva(reserva, canal=Notificacion.OpcionesCanal.EMAIL):
     
     notificacion = Notificacion.objects.create(
         reserva=reserva,
-        canal=canal,
         estado=Notificacion.OpcionesEstado.PENDIENTE,
         mensaje=mensaje,
     )
