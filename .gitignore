@@ -12,7 +12,7 @@ env/
 .env
 .env.*
 !.env.example
-backend_django/media
+backend_django/media/media
 
 # Django
 hotel_backend/db.sqlite3
