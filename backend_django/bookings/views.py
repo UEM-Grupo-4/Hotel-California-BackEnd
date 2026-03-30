@@ -1,8 +1,12 @@
 from rest_framework import mixins, status, viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from notifications.utils import crear_notificacion_reserva
+
+from .utils import reserva_puede_confirmarse
 
 from rooms.models import Room
 from rooms.serializer import RoomSerializer
@@ -17,10 +21,72 @@ from .serializer import (
 
 
 class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Reserva.objects.select_related("cliente").all().order_by("-fecha_creacion")
+    queryset = Reserva.objects.select_related(
+        "cliente",
+        "reserva_habitacion",
+        "reserva_sala",
+    ).all().order_by("-fecha_creacion")
     serializer_class = ReservaSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     lookup_field = "id"
+    
+    @action(detail=True, methods=["post"])
+    def confirmar(self, request, id=None):
+        reserva = self.get_object()
+        
+        if reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
+            return Response(
+                {"detail": "La reserva ya está confirmada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if reserva.estado == Reserva.OpcionesEstado.CANCELADA:
+            return Response(
+                {"detail": "No se puede confirmar una reserva cancelada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not reserva_puede_confirmarse(reserva):
+            return Response(
+                {"detail": "La reserva no puede confirmarse porque ya no hay disponibilidad."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        reserva.estado = Reserva.OpcionesEstado.CONFIRMADA
+        reserva.save()
+        
+        crear_notificacion_reserva(reserva)
+        
+        return Response(
+            {"detail": "Reserva confirmada correctamente."},
+            status=status.HTTP_200_OK
+        )
+        
+    @action(detail=True, methods=["post"])
+    def rechazar(self, request, id=None):
+        reserva = self.get_object()
+        
+        if reserva.estado == Reserva.OpcionesEstado.RECHAZADA:
+            return Response(
+                {"detail": "La reserva ya está rechazada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if reserva.estado == Reserva.OpcionesEstado.CANCELADA:
+            return Response(
+                {"detail": "No se puede rechazar una reserva cancelada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        reserva.estado = Reserva.OpcionesEstado.RECHAZADA
+        reserva.save()
+        
+        crear_notificacion_reserva(reserva)
+        
+        return Response(
+            {"detail": "Reserva rechazada correctamente."},
+            status=status.HTTP_200_OK
+        )
 
 
 class ReservaHabitacionViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
@@ -101,7 +167,7 @@ class ReservaSearchView(APIView):
 
         if not code or not email:
             return Response(
-                {"detail": "code and email are required"},
+                {"detail": "Los parámetros code e email son obligatorios."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -112,7 +178,7 @@ class ReservaSearchView(APIView):
             )
         except Reserva.DoesNotExist:
             return Response(
-                {"detail": "Booking not found"},
+                {"detail": "Reserva no encontrada."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
