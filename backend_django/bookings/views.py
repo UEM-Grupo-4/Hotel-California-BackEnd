@@ -160,6 +160,15 @@ class HabitacionesDisponiblesView(APIView):
 
 class ReservaSearchView(APIView):
     permission_classes = [AllowAny]
+    
+    def get_reserva(self, code, email):
+        try:
+            reserva = Reserva.objects.select_related("cliente").get(
+                code=code,
+                cliente__email=email,
+            )
+        except Reserva.DoesNotExist:
+            return None     
 
     def get(self, request):
         code = request.query_params.get("code")
@@ -167,20 +176,61 @@ class ReservaSearchView(APIView):
 
         if not code or not email:
             return Response(
-                {"detail": "Los parámetros code e email son obligatorios."},
+                {"detail": "Los campos code e email son obligatorios."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            reserva = Reserva.objects.select_related("cliente").get(
-                code=code,
-                cliente__email=email,
+        reserva = self.get_reserva(code, email)
+        
+        if not reserva:
+            return Response(
+                {"detail": "Reserva no encontrada."},
+                status=status.HTTP_404_NOT_FOUND,
+            ) 
+
+        serializer = ReservaSerializer(reserva, context={"request": request})
+        return Response(serializer.data)
+    
+    def post(self, request):
+        code = request.data.get("code")
+        email = request.data.get("email")
+        
+        if not code or not email:
+            return Response(
+                {"detail": "Los campos code e email son obligatorios."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except Reserva.DoesNotExist:
+            
+        reserva = self.get_reserva(code, email)
+        
+        if not reserva:
             return Response(
                 {"detail": "Reserva no encontrada."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+            
+        if reserva.estado == Reserva.OpcionesEstado.CANCELADA:
+            return Response(
+                {"detail": "La reserva ya está cancelada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        if reserva.estado == Reserva.OpcionesEstado.RECHAZADA:
+            return Response(
+                {"detail": "No se puede cancelar una reserva rechazada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        reserva.estado = Reserva.OpcionesEstado.CANCELADA
+        reserva.save()
 
         serializer = ReservaSerializer(reserva, context={"request": request})
-        return Response(serializer.data)
+        return Response(
+            {
+                "detail": "Reserva cancelada correctamente.",
+                "reserva": serializer.data
+            },
+            status=status.HTTP_200_OK,
+        )
+        
+        
