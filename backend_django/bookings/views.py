@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from notifications.utils import crear_notificacion_reserva
 
 from .utils import reserva_puede_confirmarse
@@ -17,6 +17,8 @@ from .serializer import (
     CrearReservaHabitacionSerializer,
     CrearReservaSalaSerializer,
     DisponibilidadHabitacionesSerializer,
+    CancelarReservaSerializer,
+    CancelarReservaResponseSerializer
 )
 
 
@@ -30,6 +32,17 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "id"
     
+    @extend_schema(
+        request=None,
+        responses={
+            200: {
+                "type": "object",
+                "properties":{
+                    "detail":{"type": "string"}
+                }
+            }
+        }
+    )
     @action(detail=True, methods=["post"])
     def confirmar(self, request, id=None):
         reserva = self.get_object()
@@ -62,6 +75,17 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
         
+    @extend_schema(
+        request=None,
+        responses={
+            200: {
+                "type": "object",
+                "properties":{
+                    "detail":{"type": "string"}
+                }
+            }
+        }
+    )
     @action(detail=True, methods=["post"])
     def rechazar(self, request, id=None):
         reserva = self.get_object()
@@ -163,13 +187,36 @@ class ReservaSearchView(APIView):
     
     def get_reserva(self, code, email):
         try:
-            reserva = Reserva.objects.select_related("cliente").get(
+            return Reserva.objects.select_related("cliente").get(
                 code=code,
                 cliente__email=email,
             )
         except Reserva.DoesNotExist:
             return None     
-
+        
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="code",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Código de la reserva"
+            ),
+            OpenApiParameter(
+                name="email",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Email del cliente asociado a la reserva"
+            ),
+        ],
+        responses={
+            200: ReservaSerializer,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        }
+    )  
     def get(self, request):
         code = request.query_params.get("code")
         email = request.query_params.get("email")
@@ -191,6 +238,14 @@ class ReservaSearchView(APIView):
         serializer = ReservaSerializer(reserva, context={"request": request})
         return Response(serializer.data)
     
+    @extend_schema(
+        request=CancelarReservaSerializer,
+        responses={
+            200: CancelarReservaResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        }
+    )
     def post(self, request):
         code = request.data.get("code")
         email = request.data.get("email")
