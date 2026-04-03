@@ -211,7 +211,7 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
 
             return reserva_sala
 
-
+# Serializer para ver la disponibilidad de las habitaciones
 class DisponibilidadHabitacionesSerializer(serializers.Serializer):
     fecha_inicio = serializers.DateField()
     fecha_fin = serializers.DateField()
@@ -223,3 +223,13 @@ class DisponibilidadHabitacionesSerializer(serializers.Serializer):
                 {"fecha_fin": "La fecha final debe ser posterior a la fecha de inicio."}
             )
         return attrs
+    
+# Serializer para cancelar una reserva (clientes)
+class CancelarReservaSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=50)
+    email = serializers.EmailField()
+
+# Serializer para el Response de Swagger
+class CancelarReservaResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    reserva = ReservaSerializer()
