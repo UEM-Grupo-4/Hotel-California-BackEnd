@@ -98,8 +98,8 @@ class CrearReservaHabitacionSerializer(CrearReservaBaseSerializer):
     habitacion = serializers.PrimaryKeyRelatedField(
         queryset=Room.objects.all()
     )
-    fecha_inicio = serializers.DateField()
-    fecha_fin = serializers.DateField()
+    fecha_inicio = serializers.DateField(input_formats=["%d-%m-%Y"])
+    fecha_fin = serializers.DateField(input_formats=["%d-%m-%Y"])
 
     def validate(self, attrs):
         if attrs["fecha_fin"] <= attrs["fecha_inicio"]:
@@ -151,7 +151,7 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
     sala = serializers.PrimaryKeyRelatedField(
         queryset=Sala.objects.all()
     )
-    fecha = serializers.DateField()
+    fecha = serializers.DateField(input_formats=["%d-%m-%Y"])
     hora_inicio = serializers.TimeField()
     hora_fin = serializers.TimeField()
 
@@ -213,8 +213,8 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
 
 # Serializer para ver la disponibilidad de las habitaciones
 class DisponibilidadHabitacionesSerializer(serializers.Serializer):
-    fecha_inicio = serializers.DateField()
-    fecha_fin = serializers.DateField()
+    fecha_inicio = serializers.DateField(input_formats=["%d-%m-%Y"])
+    fecha_fin = serializers.DateField(input_formats=["%d-%m-%Y"])
     huespedes = serializers.IntegerField(min_value=1)
 
     def validate(self, attrs):
