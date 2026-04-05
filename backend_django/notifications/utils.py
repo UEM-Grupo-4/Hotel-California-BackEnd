@@ -19,7 +19,13 @@ def crear_notificacion_reserva(reserva):
     elif reserva.estado == Reserva.OpcionesEstado.RECHAZADA:
         mensaje = f"Tu reserva con ID {reserva.id} ha sido rechazada."
     elif reserva.estado == Reserva.OpcionesEstado.CANCELADA:
-        mensaje = f"Tu reserva con ID {reserva.id} ha sido cancelada correctamente."        
+        mensaje = f"Tu reserva con ID {reserva.id} ha sido cancelada correctamente."
+    elif reserva.estado == Reserva.OpcionesEstado.PENDIENTE:
+        mensaje = (
+            "Tu reserva ha sido registrada correctamente y está pendiente de validación"
+            "Introduce tu Email y tu código para consultar el estado de tu reserva"
+            f"Código de reserva: {reserva.code}"
+        )     
     else:
         return None
     

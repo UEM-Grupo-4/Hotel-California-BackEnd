@@ -128,6 +128,9 @@ class ReservaHabitacionViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet)
         serializer.is_valid(raise_exception=True)
         reserva_habitacion = serializer.save()
         reserva = reserva_habitacion.reserva
+        
+        crear_notificacion_reserva(reserva)
+        
         output = ReservaSerializer(reserva, context={"request": request}).data
         return Response(output, status=status.HTTP_201_CREATED)
 
@@ -146,6 +149,9 @@ class ReservaSalaViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         reserva_sala = serializer.save()
         reserva = reserva_sala.reserva
+        
+        crear_notificacion_reserva(reserva)
+        
         output = ReservaSerializer(reserva, context={"request": request}).data
         return Response(output, status=status.HTTP_201_CREATED)
 
