@@ -155,9 +155,9 @@ class HabitacionesDisponiblesView(APIView):
 
     @extend_schema(
         parameters=[
-            OpenApiParameter(name="fecha_inicio", required=True, type=str, location=OpenApiParameter.QUERY),
-            OpenApiParameter(name="fecha_fin", required=True, type=str, location=OpenApiParameter.QUERY),
-            OpenApiParameter(name="huespedes", required=True, type=int, location=OpenApiParameter.QUERY),
+            OpenApiParameter(name="DD-MM-YY", required=True, type=str, location=OpenApiParameter.QUERY, description="Fecha de inicio"),
+            OpenApiParameter(name="DD-DD-YY", required=True, type=str, location=OpenApiParameter.QUERY, description="Fecha fin"),
+            OpenApiParameter(name="1", required=True, type=int, location=OpenApiParameter.QUERY, description="Huespedes"),
         ],
         responses={200: RoomSerializer(many=True)},
     )
@@ -278,6 +278,8 @@ class ReservaSearchView(APIView):
             
         reserva.estado = Reserva.OpcionesEstado.CANCELADA
         reserva.save()
+        
+        crear_notificacion_reserva(reserva)
 
         serializer = ReservaSerializer(reserva, context={"request": request})
         return Response(

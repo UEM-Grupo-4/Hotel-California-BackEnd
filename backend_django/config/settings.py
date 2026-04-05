@@ -68,12 +68,21 @@ REST_FRAMEWORK = {
     ],
 }
 
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_HOST_USER = 'dfa096f8d4f5ee'
+EMAIL_HOST_PASSWORD = 'a1dade7be86a15'
+EMAIL_PORT = '2525'
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@hotelcalifornia.local")
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'TODO List API',
     'DESCRIPTION': 'API documentation for our app',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    'COMPONENT_SPLIT_REQUEST': True
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SORT_OPERATION_PARAMETERS': False,
 }
 
 MIDDLEWARE = [
