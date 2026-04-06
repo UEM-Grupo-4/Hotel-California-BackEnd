@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, OpenApiExample, extend_schema
 from notifications.utils import crear_notificacion_reserva
 
 from .utils import reserva_puede_confirmarse
@@ -122,12 +122,33 @@ class ReservaHabitacionViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet)
     ).all()
     serializer_class = CrearReservaHabitacionSerializer
     permission_classes = [AllowAny]
+    
+    @extend_schema(
+        examples=[
+            OpenApiExample(
+                "Ejemplo reserva habitación",
+                value={
+                    "nombre": "string",
+                    "apellido_1": "string",
+                    "email": "user@example.com",
+                    "telefono": "+989127889099",
+                    "habitacion": 1,
+                    "fecha_inicio": "06-04-2026",
+                    "fecha_fin": "09-04-2026"
+                },
+                request_only=True,
+            )
+        ]
+    )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         reserva_habitacion = serializer.save()
         reserva = reserva_habitacion.reserva
+        
+        crear_notificacion_reserva(reserva)
+        
         output = ReservaSerializer(reserva, context={"request": request}).data
         return Response(output, status=status.HTTP_201_CREATED)
 
@@ -140,12 +161,34 @@ class ReservaSalaViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     ).all()
     serializer_class = CrearReservaSalaSerializer
     permission_classes = [AllowAny]
+    
+    @extend_schema(
+        examples=[
+            OpenApiExample(
+                "Ejemplo reserva sala",
+                value={
+                    "nombre": "string",
+                    "apellido_1": "string",
+                    "email": "user@example.com",
+                    "telefono": "+34600111222",
+                    "sala": 1,
+                    "fecha": "15-04-2026",
+                    "hora_inicio": "10:00:00",
+                    "hora_fin": "12:00:00"
+                },
+                request_only=True,
+            )
+        ]
+    )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         reserva_sala = serializer.save()
         reserva = reserva_sala.reserva
+        
+        crear_notificacion_reserva(reserva)
+        
         output = ReservaSerializer(reserva, context={"request": request}).data
         return Response(output, status=status.HTTP_201_CREATED)
 
