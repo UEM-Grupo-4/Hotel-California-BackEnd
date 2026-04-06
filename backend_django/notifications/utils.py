@@ -22,9 +22,9 @@ def crear_notificacion_reserva(reserva):
         mensaje = f"Tu reserva con ID {reserva.id} ha sido cancelada correctamente."
     elif reserva.estado == Reserva.OpcionesEstado.PENDIENTE:
         mensaje = (
-            "Tu reserva ha sido registrada correctamente y está pendiente de validación"
-            "Introduce tu Email y tu código para consultar el estado de tu reserva"
-            f"Código de reserva: {reserva.code}"
+            "Tu reserva ha sido registrada correctamente y está pendiente de validación.\n"
+            f"Código de reserva: {reserva.code}\n"
+            f"Consultar el estado de tu reserva aquí: http://localhost:5173/mi-reserva/?code={reserva.code}&email={reserva.cliente.email}"
         )     
     else:
         return None
