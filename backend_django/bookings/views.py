@@ -4,12 +4,18 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, OpenApiExample, extend_schema
-from notifications.utils import crear_notificacion_reserva
 
 from .utils import reserva_puede_confirmarse
 
+from .serializer import DisponibilidadSalasSerializer
+
+from notifications.utils import crear_notificacion_reserva
+
 from rooms.models import Room
 from rooms.serializer import RoomSerializer
+
+from meetings.models import Sala, HorarioSala
+from meetings.serializer import SalaSerializer
 
 from .models import Reserva, ReservaHabitacion, ReservaSala
 from .serializer import (
@@ -173,8 +179,8 @@ class ReservaSalaViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
                     "telefono": "+34600111222",
                     "sala": 1,
                     "fecha": "15-04-2026",
-                    "hora_inicio": "10:00:00",
-                    "hora_fin": "12:00:00"
+                    "hora_inicio": "10:00",
+                    "numero_horas": 2
                 },
                 request_only=True,
             )
@@ -198,9 +204,9 @@ class HabitacionesDisponiblesView(APIView):
 
     @extend_schema(
         parameters=[
-            OpenApiParameter(name="DD-MM-YY", required=True, type=str, location=OpenApiParameter.QUERY, description="Fecha de inicio"),
-            OpenApiParameter(name="DD-DD-YY", required=True, type=str, location=OpenApiParameter.QUERY, description="Fecha fin"),
-            OpenApiParameter(name="1", required=True, type=int, location=OpenApiParameter.QUERY, description="Huespedes"),
+            OpenApiParameter(name="fecha_inicio", required=True, type=str, location=OpenApiParameter.QUERY, description="Fecha de inicio"),
+            OpenApiParameter(name="fecha_fin", required=True, type=str, location=OpenApiParameter.QUERY, description="Fecha fin"),
+            OpenApiParameter(name="huespedes", required=True, type=int, location=OpenApiParameter.QUERY, description="Huespedes"),
         ],
         responses={200: RoomSerializer(many=True)},
     )
@@ -223,6 +229,81 @@ class HabitacionesDisponiblesView(APIView):
 
         disponibles = rooms_qs.exclude(id__in=ocupadas_ids)
         serializer = RoomSerializer(disponibles, many=True, context={"request": request})
+        return Response(serializer.data)
+    
+class SalasDisponiblesView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="fecha",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Fecha en formato DD-MM-YYYY o YYYY-MM-DD"
+            ),
+            OpenApiParameter(
+                name="hora_inicio",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Hora de inicio en formato HH:MM o HH:MM:SS"
+            ),
+            OpenApiParameter(
+                name="numero_horas",
+                required=True,
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Número de horas completas"
+            ),
+            OpenApiParameter(
+                name="personas",
+                required=True,
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Número de personas"
+            ),
+        ],
+        responses={200: SalaSerializer(many=True)},
+    )
+    def get(self, request):
+        query = DisponibilidadSalasSerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        data = query.validated_data
+
+        fecha = data["fecha"]
+        hora_inicio = data["hora_inicio"]
+        hora_fin = data["hora_fin"]
+        personas = data["personas"]
+
+        dia_semana = fecha.weekday()
+
+        salas_qs = Sala.objects.filter(
+            capacidad__gte=personas,
+            estado=Sala.OpcionesEstado.DISPONIBLE,
+        )
+
+        salas_con_horario = HorarioSala.objects.filter(
+            dia_semana=dia_semana,
+            hora_inicio__lte=hora_inicio,
+            hora_fin__gte=hora_fin,
+        ).values_list("sala_id", flat=True)
+
+        salas_ocupadas = ReservaSala.objects.filter(
+            fecha=fecha,
+            reserva__estado=Reserva.OpcionesEstado.CONFIRMADA,
+            hora_inicio__lt=hora_fin,
+            hora_fin__gt=hora_inicio,
+        ).values_list("sala_id", flat=True)
+
+        disponibles = salas_qs.filter(
+            id__in=salas_con_horario
+        ).exclude(
+            id__in=salas_ocupadas
+        )
+
+        serializer = SalaSerializer(disponibles, many=True, context={"request": request})
         return Response(serializer.data)
 
 class ReservaSearchView(APIView):
