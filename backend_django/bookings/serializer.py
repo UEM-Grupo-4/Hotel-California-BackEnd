@@ -157,11 +157,11 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
     numero_horas = serializers.IntegerField(min_value=1)
 
     def validate(self, attrs):
+        fecha = attrs["fecha"]
         hora_inicio = attrs["hora_inicio"]
         numero_horas = attrs["numero_horas"]
-        fecha = attrs["fecha"]
 
-        # Solo permitir horas exactas
+        # Solo permitir horas exactas: 10:00, 11:00, etc.
         if hora_inicio.minute != 0 or hora_inicio.second != 0:
             raise serializers.ValidationError(
                 {"hora_inicio": "La hora de inicio debe ser una hora exacta, sin minutos ni segundos."}
@@ -174,7 +174,7 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
 
         attrs["hora_fin"] = hora_fin
 
-        # Comprobamos que la sala dispone del horario solicitado
+        # Comprobar que la sala dispone del horario solicitado
         dia_semana = fecha.weekday()
         horario_valido = HorarioSala.objects.filter(
             sala=attrs["sala"],
@@ -188,7 +188,7 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
                 {"sala": "Horario no disponible para esta sala."}
             )
 
-        # Comprobamos solapamiento con reservas confirmadas
+        # Comprobar que no haya reserva confirmada solapada
         solapamiento = ReservaSala.objects.filter(
             sala=attrs["sala"],
             fecha=fecha,
@@ -225,6 +225,27 @@ class CrearReservaSalaSerializer(CrearReservaBaseSerializer):
 
             return reserva_sala
 
+    def create(self, validated_data):
+        with transaction.atomic():
+            observaciones = validated_data.pop("observaciones", "")
+            cliente = self.obtener_o_crear_cliente(validated_data)
+
+            reserva = self.crear_reserva_base(
+                cliente=cliente,
+                tipo_reserva=Reserva.OpcionesReserva.SALA,
+                observaciones=observaciones
+            )
+
+            reserva_sala = ReservaSala.objects.create(
+                reserva=reserva,
+                sala=validated_data["sala"],
+                fecha=validated_data["fecha"],
+                hora_inicio=validated_data["hora_inicio"],
+                hora_fin=validated_data["hora_fin"],
+            )
+
+            return reserva_sala
+
 # Serializer para ver la disponibilidad de las habitaciones
 class DisponibilidadHabitacionesSerializer(serializers.Serializer):
     fecha_inicio = serializers.DateField(input_formats=["%d-%m-%Y", "%Y-%m-%d"])
@@ -239,6 +260,8 @@ class DisponibilidadHabitacionesSerializer(serializers.Serializer):
         return attrs
     
 # Serializer para ver la disponibilidad de las habitaciones
+from datetime import datetime, timedelta
+
 class DisponibilidadSalasSerializer(serializers.Serializer):
     fecha = serializers.DateField(input_formats=["%d-%m-%Y", "%Y-%m-%d"])
     hora_inicio = serializers.TimeField(input_formats=["%H:%M", "%H:%M:%S"])
@@ -246,15 +269,17 @@ class DisponibilidadSalasSerializer(serializers.Serializer):
     personas = serializers.IntegerField(min_value=1)
 
     def validate(self, attrs):
+        fecha = attrs["fecha"]
         hora_inicio = attrs["hora_inicio"]
         numero_horas = attrs["numero_horas"]
-        fecha = attrs["fecha"]
 
+        # Solo permitir horas exactas
         if hora_inicio.minute != 0 or hora_inicio.second != 0:
             raise serializers.ValidationError(
                 {"hora_inicio": "La hora de inicio debe ser una hora exacta, sin minutos ni segundos."}
             )
 
+        # Calcular hora_fin automáticamente
         dt_inicio = datetime.combine(fecha, hora_inicio)
         dt_fin = dt_inicio + timedelta(hours=numero_horas)
         attrs["hora_fin"] = dt_fin.time()

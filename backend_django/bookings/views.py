@@ -244,13 +244,6 @@ class SalasDisponiblesView(APIView):
                 description="Fecha en formato DD-MM-YYYY o YYYY-MM-DD"
             ),
             OpenApiParameter(
-                name="hora_inicio",
-                required=True,
-                type=str,
-                location=OpenApiParameter.QUERY,
-                description="Hora de inicio en formato HH:MM o HH:MM:SS"
-            ),
-            OpenApiParameter(
                 name="numero_horas",
                 required=True,
                 type=int,
