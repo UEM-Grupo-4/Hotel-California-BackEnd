@@ -7,35 +7,38 @@ class SalaSerializer(serializers.ModelSerializer):
         fields = ["id", "nombre", "capacidad", "descripcion", "precio_hora", "estado"]
         
 class HorarioSalaSerializer(serializers.ModelSerializer):
+    nombre_sala = serializers.CharField(source="sala.nombre", read_only=True)
+    
     class Meta:
         model = HorarioSala
-        fields = ["id", "sala", "dia_semana", "hora_inicio", "hora_fin"]
+        fields = ["id", "sala", "nombre_sala", "dia_semana", "hora_inicio", "hora_fin"]
 
     def validate(self, attrs):
-        hora_inicio = attrs.get("hora_inicio")
-        hora_fin = attrs.get("hora_fin")
-        sala = attrs.get("sala")
-        dia_semana = attrs.get("dia_semana")
+        sala = attrs.get("sala", getattr(self.instance, "sala", None))
+        dia_semana = attrs.get("dia_semana", getattr(self.instance, "dia_semana", None))        
+        hora_inicio = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
+        hora_fin = attrs.get("hora_fin", getattr(self.instance, "hora_fin", None))
 
-        if hora_inicio and hora_fin and hora_fin <= hora_inicio:
+        if hora_fin <= hora_inicio:
             raise serializers.ValidationError(
                 {"hora_fin": "La hora final debe ser posterior a la hora de inicio."}
             )
 
         # Evitar solapamientos en la misma sala y dia de semana
-        if sala is not None and dia_semana is not None and hora_inicio and hora_fin:
-            qs = HorarioSala.objects.filter(
-                sala=sala,
-                dia_semana=dia_semana,
-                hora_inicio__lt=hora_fin,
-                hora_fin__gt=hora_inicio,
+        conflicto = HorarioSala.objects.filter(
+            sala=sala,
+            dia_semana=dia_semana,
+            hora_inicio__lt=hora_fin,
+            hora_fin__gt=hora_inicio,
+        )
+        
+        if self.instance:
+            conflicto = conflicto.exclude(pk=self.instance.pk)
+            
+        if conflicto.exists():
+            raise serializers.ValidationError(
+                "El horario se solapa con otro existente para esta sala en ese día."
             )
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError(
-                    {"sala": "El horario se solapa con otro existente para esta sala."}
-                )
 
         return attrs
         
