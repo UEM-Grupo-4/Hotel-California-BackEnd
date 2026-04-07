@@ -6,6 +6,7 @@ from .views import (
     ReservaHabitacionViewSet,
     ReservaSalaViewSet,
     HabitacionesDisponiblesView,
+    SalasDisponiblesView,
     ReservaSearchView
 )
 
@@ -16,5 +17,6 @@ router.register(r"reservas-salas", ReservaSalaViewSet, basename="reservas-salas"
 
 urlpatterns = router.urls + [
     path("habitaciones/disponibles/", HabitacionesDisponiblesView.as_view(), name="habitaciones-disponibles"),
+    path("salas/disponibles/", SalasDisponiblesView.as_view(), name="salas-disponibles"),
     path("reservas/search", ReservaSearchView.as_view(), name="reserva_search"),
 ]
