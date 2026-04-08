@@ -4,6 +4,7 @@ from django.db import models
 class Conversation(models.Model):
     user_email = models.EmailField()
     created_at = models.DateTimeField(auto_now_add=True)
+    is_closed = models.BooleanField(default=False)
     status = models.CharField(
         max_length=20,
         choices=[("open", "Open"), ("closed", "Closed")],

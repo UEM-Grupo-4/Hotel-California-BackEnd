@@ -1,9 +1,31 @@
 from rest_framework import viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from rest_framework.permissions import AllowAny
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
+@api_view(["PATCH"])
+def close_conversation(request, pk):
+    try:
+        conversation = Conversation.objects.get(pk=pk)
+        conversation.is_closed = True
+        conversation.save()
+
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{conversation.id}",
+            {
+                "type": "chat_closed",
+            }
+        )
+
+        return Response({"status": "closed"})
+    except Conversation.DoesNotExist:
+        return Response({"error": "Not found"}, status=404)
 
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all().order_by("-created_at")
@@ -21,6 +43,18 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 content=initial_message,
                 sender="user",
             )
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            "admins",
+            {
+                "type": "new_conversation",
+                "conversation": {
+                    "id": conversation.id,
+                    "email": conversation.user_email,
+                }
+            }
+        )
 
     @action(detail=False, methods=["get"])
     def by_email(self, request):
