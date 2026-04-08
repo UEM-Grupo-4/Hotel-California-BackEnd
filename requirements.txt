@@ -12,3 +12,4 @@ pytest-django
 drf-spectacular
 channels
 channels-redis
+daphne

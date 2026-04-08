@@ -34,7 +34,8 @@ urlpatterns = [
     path('rooms/', include('rooms.urls')),
     path('meetings/', include('meetings.urls')),
     path('bookings/', include('bookings.urls')),
-    
+    path("chat/", include("chat.urls")),
+
 ]
 
 if settings.DEBUG:

@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=config.settings
 
 WORKDIR /app
 
@@ -20,17 +21,13 @@ COPY . .
 EXPOSE 8000
 
 CMD ["sh", "-c", "\
-echo DB_HOST=$DB_HOST && \
-echo DB_PORT=$DB_PORT && \
 echo '⏳ Waiting for MySQL...' && \
 while ! nc -z $DB_HOST $DB_PORT; do sleep 0.5; done && \
 echo '✅ MySQL is up!' && \
 cd backend_django && \
-echo '🛠 Running migrations...' && \
 python manage.py makemigrations && \
 python manage.py migrate && \
-echo '🌱 Corriendo Seeds' && \
 python manage.py seed_data && \
-echo '🚀 Starting Django server...' && \
-exec python manage.py runserver 0.0.0.0:8000 \
+echo '🚀 Starting Daphne...' && \
+exec daphne config.asgi:application -b 0.0.0.0 -p 8000 \
 "]
