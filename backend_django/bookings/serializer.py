@@ -259,9 +259,7 @@ class DisponibilidadHabitacionesSerializer(serializers.Serializer):
             )
         return attrs
     
-# Serializer para ver la disponibilidad de las habitaciones
-from datetime import datetime, timedelta
-
+# Serializer para ver la disponibilidad de las salas
 class DisponibilidadSalasSerializer(serializers.Serializer):
     fecha = serializers.DateField(input_formats=["%d-%m-%Y", "%Y-%m-%d"])
     hora_inicio = serializers.TimeField(input_formats=["%H:%M", "%H:%M:%S"])
