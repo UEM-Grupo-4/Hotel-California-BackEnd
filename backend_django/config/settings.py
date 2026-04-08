@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     "meetings",
     'bookings',
     'notifications',
+    'channels',
+    'chat'
 ]
 
 REST_FRAMEWORK = {
@@ -136,7 +138,18 @@ TEMPLATES = [
     },
 ]
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
+
+
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 
 # Database
