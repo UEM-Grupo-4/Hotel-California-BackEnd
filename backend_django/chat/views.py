@@ -20,6 +20,7 @@ def close_conversation(request, pk):
             f"chat_{conversation.id}",
             {
                 "type": "chat_closed",
+                "conversation_id": conversation.id,
             }
         )
 

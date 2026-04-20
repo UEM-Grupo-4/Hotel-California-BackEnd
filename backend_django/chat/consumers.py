@@ -48,6 +48,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
+    async def chat_closed(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "chat_closed",
+            "conversation_id": event["conversation_id"],
+        }))
+
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
 
@@ -73,4 +79,10 @@ class AdminConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "type": "new_conversation",
             "conversation": event["conversation"]
+        }))
+
+    async def chat_closed(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "chat_closed",
+            "conversation_id": event["conversation_id"],
         }))
