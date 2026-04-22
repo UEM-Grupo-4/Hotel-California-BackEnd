@@ -28,3 +28,5 @@ class HorarioSalaViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return HorarioSalaDetalleSerializer
         return HorarioSalaSerializer
+    
+    

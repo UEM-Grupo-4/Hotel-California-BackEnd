@@ -4,7 +4,7 @@ from .models import Sala, HorarioSala
 class SalaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sala
-        fields = ["id", "nombre", "capacidad", "descripcion", "image", "precio_hora", "estado"]
+        fields = ["id", "nombre", "capacidad", "descripcion", "image", "precio_hora", "estado", "horarios"]
         
 class HorarioSalaSerializer(serializers.ModelSerializer):
     nombre_sala = serializers.CharField(source="sala.nombre", read_only=True)
