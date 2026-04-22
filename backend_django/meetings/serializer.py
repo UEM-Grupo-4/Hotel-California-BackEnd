@@ -61,6 +61,7 @@ class SalaDetalleSerializer(serializers.ModelSerializer):
             "nombre",
             "capacidad",
             "descripcion",
+            "image",
             "precio_hora",
             "estado",
             "horarios",
