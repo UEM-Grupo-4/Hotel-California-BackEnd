@@ -12,6 +12,7 @@ class Sala(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
     capacidad = models.PositiveIntegerField()
     descripcion = models.CharField(max_length=255, blank=True)
+    image = models.ImageField(null=True, blank=True)
     precio_hora = models.DecimalField(max_digits=8, decimal_places=2)
     estado = models.CharField(
         max_length=20,
