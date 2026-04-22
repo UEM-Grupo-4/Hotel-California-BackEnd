@@ -1,14 +1,11 @@
+import json
+
 from rest_framework import serializers
 from .models import Sala, HorarioSala
 
 
 # Serializer para listas de horarios
-# Sirve cuando en el POST /meetings/horarios/ mandamos varios horarios de golpe:
-# [
-#   {...},
-#   {...},
-#   {...}
-# ]
+# Sirve cuando en el POST /meetings/horarios/ mandamos varios horarios de golpe
 class HorarioSalaListSerializer(serializers.ListSerializer):
     def validate(self, data):
         # Validar solapamientos entre los propios horarios enviados
@@ -121,7 +118,9 @@ class HorarioSalaNestedSerializer(serializers.ModelSerializer):
 
 class SalaSerializer(serializers.ModelSerializer):
     # Permitimos mandar horarios al crear/editar sala.
-    # Como son horarios anidados, usamos un serializer que NO exige "sala".
+    # Como la request viene como FormData, el campo "horarios"
+    # llegará normalmente como string JSON y lo convertiremos
+    # dentro de to_internal_value().
     horarios = HorarioSalaNestedSerializer(many=True, required=False)
 
     class Meta:
@@ -137,10 +136,29 @@ class SalaSerializer(serializers.ModelSerializer):
             "horarios",
         ]
 
+    def to_internal_value(self, data):
+        # Convertimos a lista para que DRF pueda validarlo
+        # correctamente con HorarioSalaNestedSerializer(many=True).
+        data = data.copy()
+
+        horarios = data.get("horarios")
+
+        if isinstance(horarios, str):
+            try:
+                data["horarios"] = json.loads(horarios)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError(
+                    {"horarios": "El campo horarios debe ser un JSON válido."}
+                )
+
+        return super().to_internal_value(data)
+
     def validate_horarios(self, horarios):
-        # Validar solapamientos entre horarios enviados dentro de la propia sala
+        # Validar solapamientos entre horarios enviados
+        # dentro de la propia sala en la misma petición.
         for i, item_1 in enumerate(horarios):
             for j, item_2 in enumerate(horarios):
+                # Evitar comparaciones duplicadas y consigo mismo
                 if i >= j:
                     continue
 
@@ -194,17 +212,6 @@ class SalaSerializer(serializers.ModelSerializer):
 
         return instance
 
-    def to_representation(self, instance):
-        # Sobrescribimos la representación para que la imagen
-        # se devuelva con URL absoluta y no relativa.
-        ret = super().to_representation(instance)
-        request = self.context.get("request")
-
-        if instance.image and request:
-            ret["image"] = request.build_absolute_uri(instance.image.url)
-
-        return ret
-
 
 class HorarioSalaDetalleSerializer(serializers.ModelSerializer):
     # En el detalle de un horario, devolvemos la sala completa
@@ -218,6 +225,8 @@ class HorarioSalaDetalleSerializer(serializers.ModelSerializer):
 
 class SalaDetalleSerializer(serializers.ModelSerializer):
     # En el detalle de una sala, devolvemos todos sus horarios.
+    # Aquí usamos el serializer "normal" de horarios porque ya existen
+    # y queremos incluir también id, nombre_sala, etc.
     horarios = HorarioSalaSerializer(many=True, read_only=True)
 
     class Meta:
@@ -232,13 +241,3 @@ class SalaDetalleSerializer(serializers.ModelSerializer):
             "estado",
             "horarios",
         ]
-
-    def to_representation(self, instance):
-        # Igual que en SalaSerializer, devolvemos image con URL absoluta.
-        ret = super().to_representation(instance)
-        request = self.context.get("request")
-
-        if instance.image and request:
-            ret["image"] = request.build_absolute_uri(instance.image.url)
-
-        return ret
