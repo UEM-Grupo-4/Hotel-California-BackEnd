@@ -14,14 +14,25 @@ class ClienteResumenSerializer(serializers.ModelSerializer):
         fields = ["id", "nombre", "apellido_1", "apellido_2", "email"]
 
 class ReservaHabitacionDetalleSerializer(serializers.ModelSerializer):
+    nombre_habitacion = serializers.CharField(source="habitacion.type.name", read_only=True)
+    numero_habitacion = serializers.CharField(source="habitacion.number", read_only=True)
+
     class Meta:
         model = ReservaHabitacion
-        fields = ["habitacion", "fecha_inicio", "fecha_fin"]
+        fields = [
+            "habitacion",
+            "nombre_habitacion",
+            "numero_habitacion",
+            "fecha_inicio",
+            "fecha_fin",
+        ]
 
 class ReservaSalaDetalleSerializer(serializers.ModelSerializer):
+    nombre_sala = serializers.CharField(source="sala.nombre", read_only=True)
+
     class Meta:
         model = ReservaSala
-        fields = ["sala", "fecha", "hora_inicio", "hora_fin"]
+        fields = ["sala", "nombre_sala", "fecha", "hora_inicio", "hora_fin"]
 
 class ReservaSerializer(serializers.ModelSerializer):
     cliente = ClienteResumenSerializer(read_only=True)

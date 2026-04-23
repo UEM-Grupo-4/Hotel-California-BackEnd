@@ -33,7 +33,10 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Reserva.objects.select_related(
         "cliente",
         "reserva_habitacion",
+        "reserva_habitacion__habitacion",
+        "reserva_habitacion__habitacion__type",
         "reserva_sala",
+        "reserva_sala__sala",
     ).all().order_by("-fecha_creacion")
     serializer_class = ReservaSerializer
     permission_classes = [IsAuthenticated]
@@ -335,7 +338,14 @@ class ReservaSearchView(APIView):
 
     def get_reserva(self, code, email):
         try:
-            return Reserva.objects.select_related("cliente").get(
+            return Reserva.objects.select_related(
+                "cliente",
+                "reserva_habitacion",
+                "reserva_habitacion__habitacion",
+                "reserva_habitacion__habitacion__type",
+                "reserva_sala",
+                "reserva_sala__sala",
+            ).get(
                 code=code,
                 cliente__email=email,
             )
