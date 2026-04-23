@@ -38,4 +38,41 @@ def reserva_puede_confirmarse(reserva):
         ).exclude(reserva=reserva).exists()
 
         return not conflicto
+    
     return False
+
+def rechazar_reservas_pendientes_solapadas(reserva_confirmada):
+    reservas_rechazadas = []
+
+    if reserva_confirmada.tipo_reserva == Reserva.OpcionesReserva.HABITACION:
+        detalle = reserva_confirmada.reserva_habitacion
+
+        conflictos = Reserva.objects.filter(
+            tipo_reserva=Reserva.OpcionesReserva.HABITACION,
+            estado=Reserva.OpcionesEstado.PENDIENTE,
+            reserva_habitacion__habitacion=detalle.habitacion,
+            reserva_habitacion__fecha_inicio__lt=detalle.fecha_fin,
+            reserva_habitacion__fecha_fin__gt=detalle.fecha_inicio,
+        ).exclude(pk=reserva_confirmada.pk)
+
+    elif reserva_confirmada.tipo_reserva == Reserva.OpcionesReserva.SALA:
+        detalle = reserva_confirmada.reserva_sala
+
+        conflictos = Reserva.objects.filter(
+            tipo_reserva=Reserva.OpcionesReserva.SALA,
+            estado=Reserva.OpcionesEstado.PENDIENTE,
+            reserva_sala__sala=detalle.sala,
+            reserva_sala__fecha=detalle.fecha,
+            reserva_sala__hora_inicio__lt=detalle.hora_fin,
+            reserva_sala__hora_fin__gt=detalle.hora_inicio,
+        ).exclude(pk=reserva_confirmada.pk)
+
+    else:
+        return reservas_rechazadas
+
+    for reserva in conflictos:
+        reserva.estado = Reserva.OpcionesEstado.RECHAZADA
+        reserva.save(update_fields=["estado"])
+        reservas_rechazadas.append(reserva)
+
+    return reservas_rechazadas

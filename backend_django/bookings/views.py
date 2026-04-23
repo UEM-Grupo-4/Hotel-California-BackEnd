@@ -1,3 +1,4 @@
+from  django.db import transaction
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -5,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, OpenApiExample, extend_schema
 
-from .utils import reserva_puede_confirmarse
+from .utils import reserva_puede_confirmarse, rechazar_reservas_pendientes_solapadas
 
 from .serializer import DisponibilidadSalasSerializer
 
@@ -44,41 +45,65 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
             200: {
                 "type": "object",
                 "properties":{
-                    "detail":{"type": "string"}
+                    "detail":{"type": "string"},
+                    "resrvas_rechazadas": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                    }  
+                    
                 }
             }
         }
     )
     @action(detail=True, methods=["post"])
     def confirmar(self, request, id=None):
-        reserva = self.get_object()
-        if reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
+        with transaction.atomic():
+            reserva = self.get_object()
+
+            if reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
+                return Response(
+                    {"detail": "La reserva ya está confirmada."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if reserva.estado == Reserva.OpcionesEstado.CANCELADA:
+                return Response(
+                    {"detail": "No se puede confirmar una reserva cancelada."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if reserva.estado == Reserva.OpcionesEstado.RECHAZADA:
+                return Response(
+                    {"detail": "No se puede confirmar una reserva rechazada."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not reserva_puede_confirmarse(reserva):
+                return Response(
+                    {"detail": "La reserva no puede confirmarse porque ya no hay disponibilidad."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Confirmar la reserva seleccionada
+            reserva.estado = Reserva.OpcionesEstado.CONFIRMADA
+            reserva.save(update_fields=["estado"])
+
+            crear_notificacion_reserva(reserva)
+
+            # Rechazar automáticamente las pendientes que se solapan
+            rechazadas = rechazar_reservas_pendientes_solapadas(reserva)
+
+            # Crear notificación para cada reserva rechazada automáticamente
+            for reserva_rechazada in rechazadas:
+                crear_notificacion_reserva(reserva_rechazada)
+
             return Response(
-                {"detail": "La reserva ya está confirmada."},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "detail": "Reserva confirmada correctamente.",
+                    "reservas_rechazadas": [r.id for r in rechazadas],
+                },
+                status=status.HTTP_200_OK
             )
-
-        if reserva.estado == Reserva.OpcionesEstado.CANCELADA:
-            return Response(
-                {"detail": "No se puede confirmar una reserva cancelada."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not reserva_puede_confirmarse(reserva):
-            return Response(
-                {"detail": "La reserva no puede confirmarse porque ya no hay disponibilidad."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        reserva.estado = Reserva.OpcionesEstado.CONFIRMADA
-        reserva.save()
-
-        crear_notificacion_reserva(reserva)
-
-        return Response(
-            {"detail": "Reserva confirmada correctamente."},
-            status=status.HTTP_200_OK
-        )
 
     @extend_schema(
         request=None,
@@ -106,9 +131,16 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
                 {"detail": "No se puede rechazar una reserva cancelada."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+    
+        if reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
+            return Response(
+                {"detail": "No se puede rechazar una reserva confirmada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         reserva.estado = Reserva.OpcionesEstado.RECHAZADA
-        reserva.save()
+        
+        reserva.save(update_fields ["estado"])
 
         crear_notificacion_reserva(reserva)
 
