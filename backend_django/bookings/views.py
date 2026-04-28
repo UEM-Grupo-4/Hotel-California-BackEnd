@@ -20,16 +20,19 @@ from meetings.serializer import SalaSerializer
 
 from .models import Reserva, ReservaHabitacion, ReservaSala
 from .serializer import (
+    EmptySerializer,
     ReservaSerializer,
+    ActualizarReservaSerializer,
     CrearReservaHabitacionSerializer,
     CrearReservaSalaSerializer,
     DisponibilidadHabitacionesSerializer,
     CancelarReservaSerializer,
-    CancelarReservaResponseSerializer
+    CancelarReservaResponseSerializer,
+    EstadoReservaResponseSerializer,
 )
 
 
-class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
+class ReservaViewSet(mixins.UpdateModelMixin, viewsets.ReadOnlyModelViewSet):
     queryset = Reserva.objects.select_related(
         "cliente",
         "reserva_habitacion",
@@ -42,23 +45,47 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "id"
 
+    def get_serializer_class(self):
+        if self.action in ["update", "partial_update"]:
+            return ActualizarReservaSerializer
+        if self.action in ["confirmar", "rechazar", "cancelar"]:
+            return EmptySerializer
+        return ReservaSerializer
+
+    def get_permissions(self):
+        if self.action == "partial_update":
+            return [AllowAny()]
+        return super().get_permissions()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.action in ["update", "partial_update"] and hasattr(self, "kwargs") and self.kwargs.get("id"):
+            context["reserva"] = self.get_object()
+        return context
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        reserva = self.get_object()
+        output = ReservaSerializer(reserva, context={"request": request}).data
+        return Response(output, status=status.HTTP_200_OK)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
     @extend_schema(
-        request=None,
+        request=OpenApiTypes.NONE,
         responses={
-            200: {
-                "type": "object",
-                "properties":{
-                    "detail":{"type": "string"},
-                    "resrvas_rechazadas": {
-                        "type": "array",
-                        "items": {"type": "integer"},
-                    }  
-                    
-                }
-            }
+            200: EstadoReservaResponseSerializer,
+            400: OpenApiTypes.OBJECT,
         }
     )
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], serializer_class=EmptySerializer)
     def confirmar(self, request, id=None):
         with transaction.atomic():
             reserva = self.get_object()
@@ -100,26 +127,25 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
             for reserva_rechazada in rechazadas:
                 crear_notificacion_reserva(reserva_rechazada)
 
+            serializer = ReservaSerializer(reserva, context={"request": request})
+
             return Response(
                 {
                     "detail": "Reserva confirmada correctamente.",
+                    "reserva": serializer.data,
                     "reservas_rechazadas": [r.id for r in rechazadas],
                 },
                 status=status.HTTP_200_OK
             )
 
     @extend_schema(
-        request=None,
+        request=OpenApiTypes.NONE,
         responses={
-            200: {
-                "type": "object",
-                "properties":{
-                    "detail":{"type": "string"}
-                }
-            }
+            200: EstadoReservaResponseSerializer,
+            400: OpenApiTypes.OBJECT,
         }
     )
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], serializer_class=EmptySerializer)
     def rechazar(self, request, id=None):
         reserva = self.get_object()
 
@@ -134,7 +160,7 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
                 {"detail": "No se puede rechazar una reserva cancelada."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
         if reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
             return Response(
                 {"detail": "No se puede rechazar una reserva confirmada."},
@@ -142,14 +168,56 @@ class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         reserva.estado = Reserva.OpcionesEstado.RECHAZADA
-        
-        reserva.save(update_fields ["estado"])
+
+        reserva.save(update_fields=["estado"])
+
+        crear_notificacion_reserva(reserva)
+        serializer = ReservaSerializer(reserva, context={"request": request})
+
+        return Response(
+            {
+                "detail": "Reserva rechazada correctamente.",
+                "reserva": serializer.data,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    @extend_schema(
+        request=OpenApiTypes.NONE,
+        responses={
+            200: CancelarReservaResponseSerializer,
+            400: OpenApiTypes.OBJECT,
+        }
+    )
+
+    @action(detail=True, methods=["post"], serializer_class=EmptySerializer)
+    def cancelar(self, request, id=None):
+        reserva = self.get_object()
+
+        if reserva.estado == Reserva.OpcionesEstado.CANCELADA:
+            return Response(
+                {"detail": "La reserva ya esta cancelada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if reserva.estado == Reserva.OpcionesEstado.RECHAZADA:
+            return Response(
+                {"detail": "No se puede cancelar una reserva rechazada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reserva.estado = Reserva.OpcionesEstado.CANCELADA
+        reserva.save(update_fields=["estado"])
 
         crear_notificacion_reserva(reserva)
 
+        serializer = ReservaSerializer(reserva, context={"request": request})
         return Response(
-            {"detail": "Reserva rechazada correctamente."},
-            status=status.HTTP_200_OK
+            {
+                "detail": "Reserva cancelada correctamente.",
+                "reserva": serializer.data,
+            },
+            status=status.HTTP_200_OK,
         )
 
 

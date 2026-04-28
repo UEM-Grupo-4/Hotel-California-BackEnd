@@ -13,6 +13,11 @@ class ClienteResumenSerializer(serializers.ModelSerializer):
         model = Cliente
         fields = ["id", "nombre", "apellido_1", "apellido_2", "email"]
 
+
+class EmptySerializer(serializers.Serializer):
+    pass
+
+
 class ReservaHabitacionDetalleSerializer(serializers.ModelSerializer):
     nombre_habitacion = serializers.CharField(source="habitacion.type.name", read_only=True)
     numero_habitacion = serializers.CharField(source="habitacion.number", read_only=True)
@@ -52,6 +57,192 @@ class ReservaSerializer(serializers.ModelSerializer):
             "reserva_habitacion",
             "reserva_sala",
             ]
+
+
+class ActualizarClienteReservaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cliente
+        fields = ["nombre", "apellido_1", "apellido_2", "email"]
+
+
+class ActualizarReservaHabitacionDetalleSerializer(serializers.Serializer):
+    habitacion = serializers.PrimaryKeyRelatedField(queryset=Room.objects.all())
+    fecha_inicio = serializers.DateField(input_formats=["%d-%m-%Y", "%Y-%m-%d"])
+    fecha_fin = serializers.DateField(input_formats=["%d-%m-%Y", "%Y-%m-%d"])
+
+    def validate(self, attrs):
+        if attrs["fecha_fin"] <= attrs["fecha_inicio"]:
+            raise serializers.ValidationError(
+                {"fecha_fin": "La fecha final debe ser posterior a la fecha de inicio."}
+            )
+
+        reserva = self.context["reserva"]
+        detalle_actual = getattr(reserva, "reserva_habitacion", None)
+
+        conflicto = ReservaHabitacion.objects.filter(
+            habitacion=attrs["habitacion"],
+            reserva__estado=Reserva.OpcionesEstado.CONFIRMADA,
+            fecha_inicio__lt=attrs["fecha_fin"],
+            fecha_fin__gt=attrs["fecha_inicio"],
+        )
+
+        if detalle_actual:
+            conflicto = conflicto.exclude(pk=detalle_actual.pk)
+
+        if conflicto.exists():
+            raise serializers.ValidationError(
+                {"habitacion": "Habitacion no disponible en las fechas seleccionadas."}
+            )
+
+        return attrs
+
+
+class ActualizarReservaSalaDetalleSerializer(serializers.Serializer):
+    sala = serializers.PrimaryKeyRelatedField(queryset=Sala.objects.all())
+    fecha = serializers.DateField(input_formats=["%d-%m-%Y", "%Y-%m-%d"])
+    hora_inicio = serializers.TimeField(input_formats=["%H:%M", "%H:%M:%S"])
+    numero_horas = serializers.IntegerField(min_value=1)
+
+    def validate(self, attrs):
+        fecha = attrs["fecha"]
+        hora_inicio = attrs["hora_inicio"]
+        numero_horas = attrs["numero_horas"]
+
+        if hora_inicio.minute != 0 or hora_inicio.second != 0:
+            raise serializers.ValidationError(
+                {"hora_inicio": "La hora de inicio debe ser una hora exacta, sin minutos ni segundos."}
+            )
+
+        dt_inicio = datetime.combine(fecha, hora_inicio)
+        dt_fin = dt_inicio + timedelta(hours=numero_horas)
+        hora_fin = dt_fin.time()
+        attrs["hora_fin"] = hora_fin
+
+        dia_semana = fecha.weekday()
+        horario_valido = HorarioSala.objects.filter(
+            sala=attrs["sala"],
+            dia_semana=dia_semana,
+            hora_inicio__lte=hora_inicio,
+            hora_fin__gte=hora_fin,
+        ).exists()
+
+        if not horario_valido:
+            raise serializers.ValidationError(
+                {"sala": "Horario no disponible para esta sala."}
+            )
+
+        reserva = self.context["reserva"]
+        detalle_actual = getattr(reserva, "reserva_sala", None)
+
+        conflicto = ReservaSala.objects.filter(
+            sala=attrs["sala"],
+            fecha=fecha,
+            reserva__estado=Reserva.OpcionesEstado.CONFIRMADA,
+            hora_inicio__lt=hora_fin,
+            hora_fin__gt=hora_inicio,
+        )
+
+        if detalle_actual:
+            conflicto = conflicto.exclude(pk=detalle_actual.pk)
+
+        if conflicto.exists():
+            raise serializers.ValidationError(
+                {"sala": "Sala no disponible en la fecha y horario seleccionados."}
+            )
+
+        return attrs
+
+
+class ActualizarReservaSerializer(serializers.ModelSerializer):
+    cliente = ActualizarClienteReservaSerializer(required=False)
+    reserva_habitacion = ActualizarReservaHabitacionDetalleSerializer(required=False, allow_null=True)
+    reserva_sala = ActualizarReservaSalaDetalleSerializer(required=False, allow_null=True)
+
+    class Meta:
+        model = Reserva
+        fields = [
+            "estado",
+            "tipo_reserva",
+            "observaciones",
+            "cliente",
+            "reserva_habitacion",
+            "reserva_sala",
+        ]
+
+    def validate(self, attrs):
+        reserva = self.instance
+        tipo_reserva = attrs.get("tipo_reserva", reserva.tipo_reserva)
+        detalle_habitacion = attrs.get("reserva_habitacion", serializers.empty)
+        detalle_sala = attrs.get("reserva_sala", serializers.empty)
+
+        if tipo_reserva == Reserva.OpcionesReserva.HABITACION:
+            if detalle_sala not in (serializers.empty, None):
+                raise serializers.ValidationError(
+                    {"reserva_sala": "Una reserva de habitacion no puede tener detalle de sala."}
+                )
+
+            if detalle_habitacion is serializers.empty and not getattr(reserva, "reserva_habitacion", None):
+                raise serializers.ValidationError(
+                    {"reserva_habitacion": "Debes enviar el detalle de habitacion."}
+                )
+
+        elif tipo_reserva == Reserva.OpcionesReserva.SALA:
+            if detalle_habitacion not in (serializers.empty, None):
+                raise serializers.ValidationError(
+                    {"reserva_habitacion": "Una reserva de sala no puede tener detalle de habitacion."}
+                )
+
+            if detalle_sala is serializers.empty and not getattr(reserva, "reserva_sala", None):
+                raise serializers.ValidationError(
+                    {"reserva_sala": "Debes enviar el detalle de sala."}
+                )
+
+        return attrs
+
+    def update(self, instance, validated_data):
+        cliente_data = validated_data.pop("cliente", None)
+        detalle_habitacion = validated_data.pop("reserva_habitacion", serializers.empty)
+        detalle_sala = validated_data.pop("reserva_sala", serializers.empty)
+
+        with transaction.atomic():
+            if cliente_data:
+                for attr, value in cliente_data.items():
+                    setattr(instance.cliente, attr, value)
+                instance.cliente.save()
+
+            tipo_reserva = validated_data.get("tipo_reserva", instance.tipo_reserva)
+
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+
+            if tipo_reserva == Reserva.OpcionesReserva.HABITACION:
+                if hasattr(instance, "reserva_sala"):
+                    instance.reserva_sala.delete()
+
+                if detalle_habitacion is not serializers.empty:
+                    reserva_habitacion = getattr(instance, "reserva_habitacion", None)
+                    if reserva_habitacion:
+                        for attr, value in detalle_habitacion.items():
+                            setattr(reserva_habitacion, attr, value)
+                        reserva_habitacion.save()
+                    else:
+                        ReservaHabitacion.objects.create(reserva=instance, **detalle_habitacion)
+
+            if tipo_reserva == Reserva.OpcionesReserva.SALA:
+                if hasattr(instance, "reserva_habitacion"):
+                    instance.reserva_habitacion.delete()
+
+                if detalle_sala is not serializers.empty:
+                    reserva_sala = getattr(instance, "reserva_sala", None)
+                    if reserva_sala:
+                        for attr, value in detalle_sala.items():
+                            setattr(reserva_sala, attr, value)
+                        reserva_sala.save()
+                    else:
+                        ReservaSala.objects.create(reserva=instance, **detalle_sala)
+
+        return instance
 
 # Serializer para crear reserva base
 class CrearReservaBaseSerializer(serializers.Serializer):
@@ -304,3 +495,12 @@ class CancelarReservaSerializer(serializers.Serializer):
 class CancelarReservaResponseSerializer(serializers.Serializer):
     detail = serializers.CharField()
     reserva = ReservaSerializer()
+
+
+class EstadoReservaResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    reserva = ReservaSerializer()
+    reservas_rechazadas = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+    )
