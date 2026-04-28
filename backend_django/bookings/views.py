@@ -52,6 +52,11 @@ class ReservaViewSet(mixins.UpdateModelMixin, viewsets.ReadOnlyModelViewSet):
             return EmptySerializer
         return ReservaSerializer
 
+    def get_permissions(self):
+        if self.action == "partial_update":
+            return [AllowAny()]
+        return super().get_permissions()
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         if self.action in ["update", "partial_update"] and hasattr(self, "kwargs") and self.kwargs.get("id"):
@@ -155,7 +160,7 @@ class ReservaViewSet(mixins.UpdateModelMixin, viewsets.ReadOnlyModelViewSet):
                 {"detail": "No se puede rechazar una reserva cancelada."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
         if reserva.estado == Reserva.OpcionesEstado.CONFIRMADA:
             return Response(
                 {"detail": "No se puede rechazar una reserva confirmada."},
@@ -163,7 +168,7 @@ class ReservaViewSet(mixins.UpdateModelMixin, viewsets.ReadOnlyModelViewSet):
             )
 
         reserva.estado = Reserva.OpcionesEstado.RECHAZADA
-        
+
         reserva.save(update_fields=["estado"])
 
         crear_notificacion_reserva(reserva)
@@ -184,7 +189,7 @@ class ReservaViewSet(mixins.UpdateModelMixin, viewsets.ReadOnlyModelViewSet):
             400: OpenApiTypes.OBJECT,
         }
     )
-    
+
     @action(detail=True, methods=["post"], serializer_class=EmptySerializer)
     def cancelar(self, request, id=None):
         reserva = self.get_object()
